@@ -1,0 +1,43 @@
+---
+-
+  become: true
+  become_method: sudo
+  become_user: root
+  hosts: all
+  tasks:
+
+  - name: Is Falcon already installed?
+    stat:
+      path: /opt/CrowdStrike/falconctl
+    register: falcon_installed
+
+  - name: Copy Falcon Agent to the Client for Linux
+    copy:
+      src: /home/deploy/files/falcon-sensor-6.14.0-11110.el{{ansible_distribution_major_version}}.x86_64.rpm
+      dest: /tmp/falcon-sensor-6.14.0-11110.el{{ansible_distribution_major_version}}.x86_64.rpm
+      owner: root
+      group: root
+      mode: u=r,g=r,o=r
+    when: not falcon_installed.stat.exists
+
+  - name: Install Falcon Agent
+    yum:
+      name: /tmp/falcon-sensor-6.14.0-11110.el{{ansible_distribution_major_version}}.x86_64.rpm
+      state: present
+    when: not falcon_installed.stat.exists
+
+  - name: Register the Falcon Agent
+    command: /opt/CrowdStrike/falconctl -s --cid={{CID}}
+    when: not falcon_installed.stat.exists
+
+  - name: Start and enable Falcon Service
+    service:
+      name=falcon-sensor
+      state=restarted
+      enabled=yes
+#    when: not falcon_installed.stat.exists
+
+  - name: Clean out Falcon Installer
+    file:
+      path: /tmp/falcon-sensor-6.14.0-11110.el{{ansible_distribution_major_version}}.x86_64.rpm
+      state: absent
